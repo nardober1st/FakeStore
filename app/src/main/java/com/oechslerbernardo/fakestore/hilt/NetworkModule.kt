@@ -24,6 +24,7 @@ object NetworkModule {
             .addConverterFactory(MoshiConverterFactory.create())
             .build()
     }
+    // COMMENT TESTE
 
     @Provides
     @Singleton
