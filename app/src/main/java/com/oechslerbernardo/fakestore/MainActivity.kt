@@ -2,14 +2,15 @@ package com.oechslerbernardo.fakestore
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
-import androidx.core.view.isGone
-import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
-import coil.load
+import com.google.android.material.snackbar.Snackbar
 import com.oechslerbernardo.fakestore.databinding.ActivityMainBinding
 import com.oechslerbernardo.fakestore.hilt.service.ProductsService
+import com.oechslerbernardo.fakestore.model.network.NetworkProduct
+import com.oechslerbernardo.fakestore.model.domain.Product
+import com.oechslerbernardo.fakestore.model.mapper.ProductMapper
 import dagger.hilt.android.AndroidEntryPoint
+import retrofit2.Response
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -18,6 +19,9 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var productsService: ProductsService
 
+    @Inject
+    lateinit var productMapper: ProductMapper
+
     private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,27 +29,26 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        refreshData()
-        setupListeners()
-    }
+        val controller = ProductEpoxyController()
+        binding.epoxyRecyclerView.setController(controller)
 
-    private fun refreshData() {
         lifecycleScope.launchWhenStarted {
-            binding.productImageViewLoadingProgressBar.isVisible = true
-            val response = productsService.getAllProducts()
-            binding.productImageView.load(
-                data = "https://fakestoreapi.com/img/81fPKd-2AYL._AC_SL1500_.jpg"
-            ) {
-                listener { request, result ->
-                    binding.productImageViewLoadingProgressBar.isGone = true
-                }
+
+            val response: Response<List<NetworkProduct>> = productsService.getAllProducts()
+            val domainProducts: List<Product> = response.body()?.map { // this map fun will give us each element in 'response.body()'
+                productMapper.buildFrom(networkProduct = it)
+            } ?: emptyList()
+            controller.setData(domainProducts)
+
+            if (domainProducts.isEmpty()) {
+                Snackbar.make(binding.root, "Failed to fetch", Snackbar.LENGTH_LONG).show()
             }
-            Log.i("DATA", response.body()!!.toString())
         }
     }
 
     private fun setupListeners() {
         // If its visible, when we click, it becomes invisible and vice versa
+        /*binding.cardView.setOnClickListener {
         binding.cardView.setOnClickListener {
             binding.productDescriptionTextView.apply {
                 isVisible = !isVisible
@@ -70,5 +73,6 @@ class MainActivity : AppCompatActivity() {
             binding.favoriteImageView.setIconResource(imageRes)
             isFavorite = !isFavorite
         }
+        }*/
     }
 }
